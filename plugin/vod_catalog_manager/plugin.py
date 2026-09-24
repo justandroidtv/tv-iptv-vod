@@ -12,11 +12,7 @@ from .engine import DEFAULT_RECIPES, MAX_SYNC_BATCH, apply_rule, validate_patter
 from .job_contract import normalize_job_request
 
 # Import task definitions when the plugin module is loaded so Celery workers register them.
-try:
-    from .tasks import JOB_NAME, regex_apply_task  # noqa: F401
-except ImportError:
-    JOB_NAME = "vod_catalog_manager.regex_apply"
-    regex_apply_task = None
+from .tasks import JOB_NAME, regex_apply_task  # noqa: F401
 
 NAME = "VOD Catalog Manager"
 VERSION = "0.3.0"
@@ -176,9 +172,6 @@ class Plugin:
                 "status": "preview_required",
                 "message": "Set confirm=true after reviewing Regex Preview.",
             }
-        if regex_apply_task is None:
-            raise RuntimeError("Celery task support is unavailable in this runtime")
-
         task = regex_apply_task.delay({
             "scope": request.scope,
             "pattern": request.pattern,
