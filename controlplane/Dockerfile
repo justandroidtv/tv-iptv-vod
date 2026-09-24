@@ -6,4 +6,4 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 COPY app /app/app
 COPY frontend /app/frontend
 EXPOSE 9393
-CMD ["sh","-c","uvicorn app.main:app --host 0.0.0.0 --port \${CONTROL_PLANE_PORT:-9393}"]
+CMD ["uvicorn","app.main:app","--host","0.0.0.0","--port","9393"]
