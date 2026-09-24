@@ -26,6 +26,7 @@
     {"id":"category_rename","label":"Category Rename","description":"Preview or rename one category.","button_label":"Rename","button_variant":"filled","button_color":"orange","confirm":{"required":true,"title":"Rename category?","message":"Only the category label changes."}},
     {"id":"category_visibility","label":"Category Visibility","description":"Hide/show one category for one M3U account.","button_label":"Visibility","button_variant":"filled","button_color":"orange","confirm":{"required":true,"title":"Change visibility?","message":"No provider media is deleted."}},
     {"id":"category_merge","label":"Category Merge","description":"Merge same-type categories transactionally.","button_label":"Merge","button_variant":"filled","button_color":"red","confirm":{"required":true,"title":"Merge categories?","message":"Backup first."}},
+    {"id":"category_delete_empty","label":"Delete Empty Category","description":"Delete a category only when it has no content or account relations.","button_label":"Delete Empty","button_variant":"filled","button_color":"red","confirm":{"required":true,"title":"Delete empty category?","message":"Backup first. Automatic recreation is not guaranteed."}},
     {"id":"audit_tail","label":"Audit","description":"Show recent audit records.","button_label":"Audit","button_variant":"subtle"}
   ]
 }
