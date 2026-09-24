@@ -93,7 +93,8 @@ class Plugin:
             "job_status":self._job_status, "job_revoke":self._job_revoke,
             "category_rename":self._category_rename,
             "category_visibility":self._category_visibility, "category_merge":self._category_merge,
-            "category_delete_empty":self._category_delete_empty, "audit_tail":self._audit_tail,
+            "category_delete_empty":self._category_delete_empty, "source_health":self._source_health,
+            "audit_tail":self._audit_tail,
         }
         if action not in handlers:
             raise ValueError(f"Unknown action: {action}")
@@ -399,6 +400,105 @@ class Plugin:
     def _audit(self,row):
         with self.audit_path.open("a",encoding="utf-8") as f:
             f.write(json.dumps({"at":datetime.now(timezone.utc).isoformat(),**row},ensure_ascii=False,default=str)+"\n")
+
+    def _source_health(self):
+        Movie, Series, Episode, Category, CatRel, MovieRel, SeriesRel = self._models()
+        from apps.vod.models import M3UEpisodeRelation
+        from apps.m3u.models import M3UAccount
+        from django.db.models import Count
+
+        movie_total = MovieRel.objects.count()
+        series_total = SeriesRel.objects.count()
+        episode_total = M3UEpisodeRelation.objects.count()
+
+        movie_ext = list(
+            MovieRel.objects.values("container_extension")
+            .annotate(count=Count("id"))
+            .order_by("-count")
+        )
+        episode_ext = list(
+            M3UEpisodeRelation.objects.values("container_extension")
+            .annotate(count=Count("id"))
+            .order_by("-count")
+        )
+
+        movie_by_account = dict(
+            MovieRel.objects.values("m3u_account_id")
+            .annotate(count=Count("id"))
+            .values_list("m3u_account_id", "count")
+        )
+        series_by_account = dict(
+            SeriesRel.objects.values("m3u_account_id")
+            .annotate(count=Count("id"))
+            .values_list("m3u_account_id", "count")
+        )
+        episode_by_account = dict(
+            M3UEpisodeRelation.objects.values("m3u_account_id")
+            .annotate(count=Count("id"))
+            .values_list("m3u_account_id", "count")
+        )
+
+        accounts = list(
+            M3UAccount.objects.values(
+                "id", "name", "status", "is_active", "priority", "max_streams"
+            ).order_by("-priority", "id")
+        )
+        for account in accounts:
+            account_id = account["id"]
+            account["movie_relations"] = movie_by_account.get(account_id, 0)
+            account["series_relations"] = series_by_account.get(account_id, 0)
+            account["episode_relations"] = episode_by_account.get(account_id, 0)
+            account["total_relations"] = (
+                account["movie_relations"]
+                + account["series_relations"]
+                + account["episode_relations"]
+            )
+        accounts = [x for x in accounts if x["total_relations"] > 0]
+
+        inactive_movie = MovieRel.objects.filter(
+            m3u_account__is_active=False
+        ).count()
+        inactive_series = SeriesRel.objects.filter(
+            m3u_account__is_active=False
+        ).count()
+        inactive_episode = M3UEpisodeRelation.objects.filter(
+            m3u_account__is_active=False
+        ).count()
+
+        return {
+            "status": "ok",
+            "accounts": {
+                "total": len(accounts),
+                "active": sum(1 for x in accounts if x["is_active"]),
+                "inactive": sum(1 for x in accounts if not x["is_active"]),
+                "with_vod_relations": len(accounts),
+            },
+            "relations": {
+                "movies": movie_total,
+                "series": series_total,
+                "episodes": episode_total,
+                "total": movie_total + series_total + episode_total,
+                "inactive_account_relations": {
+                    "movies": inactive_movie,
+                    "series": inactive_series,
+                    "episodes": inactive_episode,
+                    "total": inactive_movie + inactive_series + inactive_episode,
+                },
+            },
+            "container_extensions": {
+                "movies": movie_ext,
+                "episodes": episode_ext,
+                "series": "not stored on M3USeriesRelation",
+            },
+            "top_accounts": accounts[:25],
+            "limits": {
+                "max_streams": "Per-account limit; 0 means unlimited."
+            },
+            "interpretation": {
+                "direct_play": "Not inferred: codec/audio/subtitle metadata is not stored on these relations.",
+                "failover": "Existing VOD proxy selection/failover remains authoritative.",
+            },
+        }
 
     def _audit_tail(self):
         if not self.audit_path.exists(): return {"status":"ok","audit":[]}
