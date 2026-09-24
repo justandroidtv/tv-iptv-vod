@@ -3,12 +3,13 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime, timezone
+import time
 from pathlib import Path
 from typing import Any
 
 from django.db import transaction
 
-from .engine import DEFAULT_RECIPES, MAX_SYNC_BATCH, apply_rule, validate_pattern
+from .engine import DEFAULT_RECIPES, MAX_SYNC_BATCH, RegexRule, apply_rule, validate_pattern
 from .job_contract import normalize_job_request
 
 # Import task definitions when the plugin module is loaded so Celery workers register them.
@@ -144,7 +145,7 @@ class Plugin:
         if model is None: raise ValueError("scope must be movie, series or episode")
         rows=list(model.objects.all().order_by("id")[:limit]); changes=[]
         for obj in rows:
-            old=str(obj.name or ""); rule=type("R",(),{"pattern":pattern,"replacement":replacement,"flags":flags,"enabled":True})()
+            old=str(obj.name or ""); rule=RegexRule(pattern=pattern,replacement=replacement,flags=flags,enabled=True)
             new=apply_rule(old,rule)
             if new!=old: changes.append({"id":obj.id,"old":old,"new":new})
         preview={"status":"preview","scope":scope,"scanned":len(rows),"matches":len(changes),"changes":changes[:100],"truncated":len(changes)>100}
