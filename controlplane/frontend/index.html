@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dispatcharr VOD Control Plane</title>
+  <link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+  <div id="auth" class="auth-screen">
+    <div class="auth-card">
+      <div class="eyebrow">DISPATCHARR / CONTROL PLANE</div>
+      <h1>VOD operations console</h1>
+      <p>Connect with the Control Plane token. The Dispatcharr API key never reaches the browser.</p>
+      <label for="token">Control Plane token</label>
+      <input id="token" type="password" autocomplete="off" spellcheck="false">
+      <button id="connect" class="primary wide">Connect</button>
+      <div id="auth-error" class="error-text" hidden></div>
+    </div>
+  </div>
+
+  <div id="app" class="app-shell" hidden>
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">V</div>
+        <div><strong>VOD Control</strong><span>Dispatcharr sidecar</span></div>
+      </div>
+      <nav id="nav">
+        <button data-view="dashboard" class="nav-item active">Dashboard</button>
+        <button data-view="catalog" class="nav-item">Catalog</button>
+        <button data-view="categories" class="nav-item">Categories</button>
+        <button data-view="regex" class="nav-item">Regex Studio</button>
+        <button data-view="jobs" class="nav-item">Jobs</button>
+        <button data-view="diagnostics" class="nav-item">Diagnostics</button><button data-view="integrations" class="nav-item">Integrations</button>
+        <button data-view="audit" class="nav-item">Audit</button>
+        <button data-view="settings" class="nav-item">Settings</button>
+      </nav>
+      <div class="sidebar-footer"><span class="status-dot"></span><span id="conn-label">Connected</span></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div><div class="eyebrow" id="view-kicker">CONTROL / DASHBOARD</div><h2 id="view-title">Dashboard</h2></div>
+        <div class="top-actions"><button id="refresh" class="ghost">Refresh</button><button id="disconnect" class="ghost danger-text">Disconnect</button></div>
+      </header>
+      <div id="toast" class="toast" hidden></div>
+
+      <section id="view-dashboard" class="view active">
+        <div class="hero-strip">
+          <div><span class="pill success">CORE-SAFE</span><h3>Provider catalog control without editing Dispatcharr core.</h3><p>Preview-first writes, bounded transactions, and Celery-backed large jobs.</p></div>
+          <div id="plugin-chip" class="metric-chip">Checking plugin…</div>
+        </div>
+        <div id="metrics" class="metric-grid"></div>
+        <div class="two-column">
+          <div class="panel"><div class="panel-head"><h3>Recent jobs</h3><button data-view-link="jobs" class="text-link">Open jobs</button></div><div id="recent-jobs" class="list"></div></div>
+          <div class="panel"><div class="panel-head"><h3>Operating contract</h3></div><div class="check-list">
+            <div><span class="check">✓</span> Preview before destructive write</div>
+            <div><span class="check">✓</span> Bounded transactions for bulk changes</div>
+            <div><span class="check">✓</span> Secrets stay server-side</div>
+            <div><span class="check">✓</span> Plugin boundary; core untouched</div>
+          </div></div>
+        </div>
+      </section>
+
+      <section id="view-catalog" class="view">
+        <div class="toolbar"><select id="catalog-kind"><option value="movie">Movies</option><option value="series">Series</option><option value="episode">Episodes</option></select><input id="catalog-query" placeholder="Search titles…"><button id="catalog-search" class="primary">Search</button></div>
+        <div class="panel"><div class="panel-head"><h3>Catalog</h3><span id="catalog-meta" class="muted"></span></div><div id="catalog-table" class="table-wrap"></div><div class="pager"><button id="catalog-prev" class="ghost">Previous</button><span id="catalog-page"></span><button id="catalog-next" class="ghost">Next</button></div></div>
+      </section>
+
+      <section id="view-categories" class="view">
+        <div class="toolbar"><input id="category-query" placeholder="Search categories…"><button id="category-search" class="primary">Search</button></div>
+        <div class="panel"><div class="panel-head"><h3>Category Studio</h3><span class="muted">Hide is safer than merge; merge is safer than delete.</span></div><div id="category-table" class="table-wrap"></div><div class="pager"><button id="category-prev" class="ghost">Previous</button><span id="category-page"></span><button id="category-next" class="ghost">Next</button></div></div>
+        <div class="panel" style="margin-top:12px"><div class="panel-head"><h3>Hide / Show for account</h3><span class="muted">Changes only the account/category relation; no provider media is deleted.</span></div><div class="form-grid"><label>Account ID<input id="vis-account" type="number"></label><label>Category ID<input id="vis-category" type="number"></label><label>State<select id="vis-state"><option value="true">Show</option><option value="false">Hide</option></select></label></div><button id="visibility-run" class="primary">Preview / Apply</button></div><div class="danger-grid">
+          <div class="panel"><div class="panel-head"><h3>Rename</h3></div><div class="form-grid"><label>Category ID<input id="rename-id" type="number"></label><label>New name<input id="rename-name"></label></div><button id="rename-run" class="primary">Preview / Rename</button></div>
+          <div class="panel"><div class="panel-head"><h3>Merge</h3></div><div class="form-grid"><label>Source ID<input id="merge-source" type="number"></label><label>Target ID<input id="merge-target" type="number"></label></div><button id="merge-run" class="danger">Preview / Merge</button></div>
+          <div class="panel"><div class="panel-head"><h3>Delete empty</h3></div><div class="form-grid"><label>Category ID<input id="delete-id" type="number"></label></div><button id="delete-run" class="danger">Preview / Delete</button></div>
+        </div>
+      </section>
+
+      <section id="view-regex" class="view">
+        <div class="regex-layout">
+          <div class="panel">
+            <div class="panel-head"><h3>Rule</h3><span class="pill">DRY RUN</span></div>
+            <label>Recipe<select id="recipe"></select></label>
+            <div class="form-grid"><label>Scope<select id="regex-scope"><option value="movie">Movie</option><option value="series">Series</option><option value="episode">Episode</option></select></label><label>Max rows<input id="max-rows" type="number" min="0" max="100000" value="0"><small>0 = entire selected catalog</small></label></div>
+            <label>Pattern<textarea id="regex-pattern" rows="4" spellcheck="false"></textarea></label>
+            <label>Replacement<input id="regex-replacement" spellcheck="false"></label>
+            <label class="switch-row"><input id="regex-case" type="checkbox" checked> Case insensitive</label>
+            <div class="action-row"><button id="regex-preview" class="primary">Preview</button><button id="regex-queue" class="ghost" disabled>Queue job</button></div>
+            <div id="regex-warning" class="warning" hidden></div>
+          </div>
+          <div class="panel"><div class="panel-head"><h3>Preview</h3><span id="regex-meta" class="muted"></span></div><div id="regex-preview-table" class="preview-list empty">Run preview to see exact before/after examples.</div></div>
+        </div>
+      </section>
+
+      <section id="view-jobs" class="view"><div class="panel"><div class="panel-head"><h3>Background jobs</h3><button id="jobs-refresh" class="ghost">Refresh jobs</button></div><div id="jobs-table" class="table-wrap"></div></div></section>
+
+      <section id="view-diagnostics" class="view">
+  <div class="hero-strip"><div><span class="pill success">READ ONLY</span><h3>Source health and continuity signals.</h3><p>These metrics describe provider/account state. Direct Play is not inferred when codec metadata is absent.</p></div><button id="source-refresh" class="ghost">Refresh diagnostics</button></div>
+  <div id="source-summary" class="metric-grid"></div>
+  <div class="two-column">
+    <div class="panel"><div class="panel-head"><h3>Container mix</h3><span class="muted">Movie / episode relations</span></div><div id="source-extensions" class="list"></div></div>
+    <div class="panel"><div class="panel-head"><h3>Inactive-account coverage</h3><span class="muted">Relations still tied to disabled accounts</span></div><div id="source-inactive" class="list"></div></div>
+  </div>
+  <div class="panel" style="margin-top:13px"><div class="panel-head"><h3>Top VOD accounts</h3><span class="muted">Names are metadata only; no credentials are shown.</span></div><div id="source-accounts" class="table-wrap"></div></div>
+</section>
+
+      <section id="view-integrations" class="view"><div class="panel"><div class="panel-head"><h3>Client projections</h3><span class="muted">Client policies stay separate from provider identity.</span></div><div id="integration-cards" class="integration-grid"></div></div></section>
+
+      <section id="view-audit" class="view"><div class="panel"><div class="panel-head"><h3>Audit trail</h3></div><div id="audit-table" class="table-wrap"></div></div></section>
+
+      <section id="view-settings" class="view"><div class="panel"><div class="panel-head"><h3>Runtime settings</h3><span class="pill warning-pill">SECRETS HIDDEN</span></div><div id="public-settings" class="settings-list"></div><div class="inline-warning"><strong>Production note:</strong> keep the Control Plane token and Dispatcharr API key in environment or secret storage. Never commit them.</div></div></section>
+    </main>
+  </div>
+
+  <dialog id="confirm-dialog"><form method="dialog" class="dialog-card"><div class="eyebrow">CONFIRM WRITE</div><h3 id="confirm-title">Confirm operation</h3><pre id="confirm-body"></pre><div class="dialog-actions"><button value="cancel" class="ghost">Cancel</button><button id="confirm-ok" value="ok" class="danger">Confirm</button></div></form></dialog>
+  <script src="/assets/app.js" defer></script>
+</body>
+</html>

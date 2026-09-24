@@ -18,7 +18,11 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install test tools
         run: python -m pip install --upgrade pip pytest
+      - name: Install control plane dependencies
+        run: python -m pip install -r controlplane/requirements.txt
       - name: Syntax check
         run: python -m compileall plugin/vod_catalog_manager
       - name: Unit tests
-        run: python -m pytest tests -q
+        run: python -m pytest tests controlplane/tests -q
+      - name: Frontend syntax check
+        run: node --check controlplane/frontend/app.js
