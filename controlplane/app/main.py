@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from .client_profiles import all_client_profiles
 from .config import Settings, load_settings
 from .db import ControlPlaneDB
 from .dispatcharr import DispatcharrClient
@@ -350,12 +351,14 @@ async def source_health(ctx=Depends(auth)):
 async def integrations(ctx=Depends(auth)):
     import os
 
-    return {
-        "plex": {"configured": bool(os.environ.get("PLEX_BASE_URL"))},
-        "jellyfin": {"configured": bool(os.environ.get("JELLYFIN_BASE_URL"))},
-        "emby": {"configured": bool(os.environ.get("EMBY_BASE_URL"))},
-        "vod2mlib": {"mode": os.environ.get("VOD2MLIB_MODE", "disabled")},
+    profiles = {p["id"]: p for p in all_client_profiles()}
+    for key in ("plex", "jellyfin", "emby"):
+        profiles[key]["configured"] = bool(os.environ.get(f"{key.upper()}_BASE_URL"))
+    profiles["vod2mlib"] = {
+        "mode": os.environ.get("VOD2MLIB_MODE", "disabled"),
+        "configured": os.environ.get("VOD2MLIB_MODE", "disabled") != "disabled",
     }
+    return profiles
 
 
 @app.get("/api/audit")
