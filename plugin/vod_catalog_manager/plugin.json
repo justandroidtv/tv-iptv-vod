@@ -1,0 +1,28 @@
+{
+  "name": "VOD Catalog Manager",
+  "version": "0.3.0",
+  "description": "Non-core VOD catalog management for categories, naming rules, aliases and safe bulk changes.",
+  "author": "justandroidtv",
+  "help_url": "https://github.com/justandroidtv/tv-iptv-vod",
+  "fields": [
+    {"id":"notice","label":"Safety","type":"info","description":"Core files are never edited. Writes are preview-first and audited."},
+    {"id":"regex_scope","label":"Regex scope","type":"select","default":"movie","options":[{"value":"movie","label":"Movie"},{"value":"series","label":"Series"},{"value":"episode","label":"Episode"}]},
+    {"id":"regex_pattern","label":"Regex pattern","type":"text","default":""},
+    {"id":"regex_replacement","label":"Replacement","type":"string","default":""},
+    {"id":"regex_limit","label":"Synchronous batch limit","type":"number","default":100},
+    {"id":"regex_case_insensitive","label":"Case insensitive","type":"boolean","default":true},
+    {"id":"confirm_write","label":"Confirm write","type":"boolean","default":false}
+  ],
+  "actions": [
+    {"id":"status","label":"VOD Control Status","description":"Read-only VOD counts and plugin state.","button_label":"Status","button_variant":"outline","button_color":"blue"},
+    {"id":"catalog_query","label":"Catalog Query","description":"Read-only paginated title search.","button_label":"Query","button_variant":"outline","button_color":"cyan"},
+    {"id":"category_list","label":"Category List","description":"Read-only category listing.","button_label":"Categories","button_variant":"outline","button_color":"cyan"},
+    {"id":"regex_library","label":"Regex Recipe Library","description":"Safe recipes with explanations.","button_label":"Recipes","button_variant":"outline","button_color":"violet"},
+    {"id":"regex_preview","label":"Regex Preview","description":"Preview changes without writing.","button_label":"Preview","button_variant":"filled","button_color":"blue"},
+    {"id":"regex_apply","label":"Regex Apply","description":"Apply a reviewed bounded regex batch.","button_label":"Apply","button_variant":"filled","button_color":"orange","confirm":{"required":true,"title":"Apply regex changes?","message":"Review preview and backup first."}},
+    {"id":"category_rename","label":"Category Rename","description":"Preview or rename one category.","button_label":"Rename","button_variant":"filled","button_color":"orange","confirm":{"required":true,"title":"Rename category?","message":"Only the category label changes."}},
+    {"id":"category_visibility","label":"Category Visibility","description":"Hide/show one category for one M3U account.","button_label":"Visibility","button_variant":"filled","button_color":"orange","confirm":{"required":true,"title":"Change visibility?","message":"No provider media is deleted."}},
+    {"id":"category_merge","label":"Category Merge","description":"Merge same-type categories transactionally.","button_label":"Merge","button_variant":"filled","button_color":"red","confirm":{"required":true,"title":"Merge categories?","message":"Backup first."}},
+    {"id":"audit_tail","label":"Audit","description":"Show recent audit records.","button_label":"Audit","button_variant":"subtle"}
+  ]
+}
