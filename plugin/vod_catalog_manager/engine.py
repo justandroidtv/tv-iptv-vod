@@ -50,7 +50,9 @@ def apply_rule(value: str, rule: RegexRule) -> str:
 def safe_filename(value: str, max_len: int = 180) -> str:
     value = normalize_title(value)
     value = re.sub(r'[<>:"/\\|?*\x00-\x1f]', " ", value)
-    return normalize_whitespace(value).rstrip(". ")[:max_len].rstrip(". ")
+    value = normalize_whitespace(value)
+    value = re.sub(r"\s+\.", ".", value)
+    return value.rstrip(". ")[:max_len].rstrip(". ")
 
 DEFAULT_RECIPES = [
     {"id":"arabic-digits","name":"Arabic/Persian digits","pattern":r"[٠-٩۰-۹]","replacement":"","explanation":"Normalize digits before identity matching."},
