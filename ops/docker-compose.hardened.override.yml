@@ -1,13 +1,13 @@
 # Hardened override/template for the existing modular Dispatcharr deployment.
-# Do not use this file alone. Keep the original compose as the service definition.
-# Put all secrets in an untracked .env file before restarting.
+# Do not use this file alone. Keep the original compose service definitions.
+# Put all secrets and image references in an untracked .env file.
 
 services:
   web:
-    image: ghcr.io/dispatcharr/dispatcharr@sha256:f81924fa3dbfeb463b3908be7e086bf58aacbd2ba56062bfb555ee3a471acf8f
+    image: ${DISPATCHARR_IMAGE:?set DISPATCHARR_IMAGE in .env}
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
-      HF_TOKEN: ${HF_TOKEN:?set HF_TOKEN in .env if Media Platform needs it}
+      HF_TOKEN: ${HF_TOKEN:?set HF_TOKEN in .env if required}
       MEDIA_SECRET_KEY: ${MEDIA_SECRET_KEY:?set MEDIA_SECRET_KEY in .env}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:9191}
       DISPATCHARR_TRUSTED_PROXIES: ${DISPATCHARR_TRUSTED_PROXIES:-172.18.0.0/16}
@@ -18,7 +18,7 @@ services:
         max-file: "5"
 
   celery:
-    image: ghcr.io/dispatcharr/dispatcharr@sha256:f81924fa3dbfeb463b3908be7e086bf58aacbd2ba56062bfb555ee3a471acf8f
+    image: ${DISPATCHARR_IMAGE:?set DISPATCHARR_IMAGE in .env}
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       DJANGO_SETTINGS_MODULE: dispatcharr.settings
@@ -30,7 +30,7 @@ services:
         max-file: "5"
 
   db:
-    image: postgres@sha256:67f41722b7a8cbdb868a44a4995c846eddfdc2973bccb291ce937dce88ad5675
+    image: ${POSTGRES_IMAGE:?set POSTGRES_IMAGE in .env}
     ports: []
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
@@ -41,7 +41,7 @@ services:
         max-file: "5"
 
   redis:
-    image: redis@sha256:298e5b3bc566bade82f46ad5511777a4a07a294097da2f6a42be5239df5
+    image: ${REDIS_IMAGE:?set REDIS_IMAGE in .env}
     logging:
       driver: json-file
       options:
