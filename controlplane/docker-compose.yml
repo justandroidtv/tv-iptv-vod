@@ -1,0 +1,24 @@
+services:
+  vod-control-plane:
+    build: .
+    container_name: dispatcharr_vod_controlplane
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DISPATCHARR_BASE_URL: \${DISPATCHARR_BASE_URL:-http://host.docker.internal:9191}
+      CONTROL_PLANE_BIND: 0.0.0.0
+      CONTROL_PLANE_PORT: \${CONTROL_PLANE_PORT:-9393}
+      CONTROL_PLANE_DB: /app/data/controlplane.sqlite3
+    ports:
+      - "127.0.0.1:\${CONTROL_PLANE_PORT:-9393}:9393"
+    volumes:
+      - ./data:/app/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD","python","-c","import urllib.request; urllib.request.urlopen('http://127.0.0.1:9393/api/health',timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
