@@ -337,6 +337,15 @@ async def delete_empty_category(payload: CategoryDeleteIn, ctx=Depends(auth)):
     return result
 
 
+@app.get("/api/source-health")
+async def source_health(ctx=Depends(auth)):
+    _, _, client = ctx
+    try:
+        return await client.action("source_health", {})
+    except Exception as exc:
+        raise _plugin_error(exc)
+
+
 @app.get("/api/integrations")
 async def integrations(ctx=Depends(auth)):
     import os
