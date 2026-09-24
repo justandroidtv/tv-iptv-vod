@@ -31,7 +31,7 @@
         <button data-view="categories" class="nav-item">Categories</button>
         <button data-view="regex" class="nav-item">Regex Studio</button>
         <button data-view="jobs" class="nav-item">Jobs</button>
-        <button data-view="integrations" class="nav-item">Integrations</button>
+        <button data-view="diagnostics" class="nav-item">Diagnostics</button><button data-view="integrations" class="nav-item">Integrations</button>
         <button data-view="audit" class="nav-item">Audit</button>
         <button data-view="settings" class="nav-item">Settings</button>
       </nav>
@@ -94,6 +94,16 @@
       </section>
 
       <section id="view-jobs" class="view"><div class="panel"><div class="panel-head"><h3>Background jobs</h3><button id="jobs-refresh" class="ghost">Refresh jobs</button></div><div id="jobs-table" class="table-wrap"></div></div></section>
+
+      <section id="view-diagnostics" class="view">
+  <div class="hero-strip"><div><span class="pill success">READ ONLY</span><h3>Source health and continuity signals.</h3><p>These metrics describe provider/account state. Direct Play is not inferred when codec metadata is absent.</p></div><button id="source-refresh" class="ghost">Refresh diagnostics</button></div>
+  <div id="source-summary" class="metric-grid"></div>
+  <div class="two-column">
+    <div class="panel"><div class="panel-head"><h3>Container mix</h3><span class="muted">Movie / episode relations</span></div><div id="source-extensions" class="list"></div></div>
+    <div class="panel"><div class="panel-head"><h3>Inactive-account coverage</h3><span class="muted">Relations still tied to disabled accounts</span></div><div id="source-inactive" class="list"></div></div>
+  </div>
+  <div class="panel" style="margin-top:13px"><div class="panel-head"><h3>Top VOD accounts</h3><span class="muted">Names are metadata only; no credentials are shown.</span></div><div id="source-accounts" class="table-wrap"></div></div>
+</section>
 
       <section id="view-integrations" class="view"><div class="panel"><div class="panel-head"><h3>Client projections</h3><span class="muted">Client policies stay separate from provider identity.</span></div><div id="integration-cards" class="integration-grid"></div></div></section>
 
