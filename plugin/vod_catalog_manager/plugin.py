@@ -9,6 +9,7 @@ from typing import Any
 from django.db import transaction
 
 from .engine import DEFAULT_RECIPES, MAX_SYNC_BATCH, apply_rule, validate_pattern
+from .job_contract import normalize_job_request
 
 NAME = "VOD Catalog Manager"
 VERSION = "0.3.0"
@@ -79,7 +80,9 @@ class Plugin:
         handlers = {
             "status":self._status, "catalog_query":self._catalog_query, "category_list":self._category_list,
             "regex_library":lambda:self._regex_library(), "regex_preview":lambda:self._regex(False),
-            "regex_apply":lambda:self._regex(True), "category_rename":self._category_rename,
+            "regex_apply":lambda:self._regex(True), "regex_apply_async":self._regex_apply_async,
+            "job_status":self._job_status, "job_revoke":self._job_revoke,
+            "category_rename":self._category_rename,
             "category_visibility":self._category_visibility, "category_merge":self._category_merge, "audit_tail":self._audit_tail,
         }
         if action not in handlers:
@@ -88,7 +91,7 @@ class Plugin:
 
     def _status(self):
         Movie, Series, Episode, Category, CatRel, MovieRel, SeriesRel = self._models()
-        return {"status":"ok","version":VERSION,"core_modified":False,"counts":{
+        return {"status":"ok","version":VERSION,"core_write_prohibited":True,"counts":{
             "movies":Movie.objects.count(),"series":Series.objects.count(),"episodes":Episode.objects.count(),
             "categories":Category.objects.count(),"movie_relations":MovieRel.objects.count(),
             "series_relations":SeriesRel.objects.count(),"category_account_relations":CatRel.objects.count()}}
@@ -150,6 +153,93 @@ class Plugin:
                 updated += model.objects.filter(id=row["id"],name=row["old"]).update(name=row["new"][:255])
         self._audit({"action":"regex_apply","scope":scope,"updated":updated,"snapshot":snapshot})
         return {"status":"ok","updated":updated,"snapshot":snapshot}
+
+    def _regex_apply_async(self):
+        p = self._params
+        request = normalize_job_request({
+            "scope": p.get("scope"),
+            "pattern": p.get("pattern"),
+            "replacement": p.get("replacement"),
+            "limit": p.get("limit"),
+            "case_insensitive": p.get("case_insensitive", True),
+        })
+        validate_pattern(request.pattern)
+        if not self._confirmed(p):
+            return {
+                "status": "preview_required",
+                "message": "Set confirm=true after reviewing Regex Preview.",
+            }
+        from .tasks import JOB_NAME, regex_apply_task
+
+        task = regex_apply_task.delay({
+            "scope": request.scope,
+            "pattern": request.pattern,
+            "replacement": request.replacement,
+            "case_insensitive": request.case_insensitive,
+        })
+        self._audit({
+            "action": "regex_apply_async",
+            "status": "queued",
+            "job_id": task.id,
+            "task_name": JOB_NAME,
+            "scope": request.scope,
+        })
+        return {
+            "status": "queued",
+            "job_id": task.id,
+            "task_name": JOB_NAME,
+            "scope": request.scope,
+            "message": "Background job queued. Use job_status with this job_id.",
+        }
+
+    def _job_status(self):
+        task_id = str(self._params.get("job_id") or "").strip()
+        if not task_id:
+            raise ValueError("job_id is required")
+        from celery.result import AsyncResult
+
+        result = AsyncResult(task_id)
+        state_map = {
+            "PENDING": "queued",
+            "STARTED": "running",
+            "PROGRESS": "running",
+            "SUCCESS": "completed",
+            "FAILURE": "failed",
+            "REVOKED": "revoked",
+        }
+        state = state_map.get(result.state, result.state.lower())
+        info = result.info if isinstance(result.info, dict) else None
+        return {
+            "status": "ok",
+            "job_id": task_id,
+            "state": state,
+            "raw_state": result.state,
+            "meta": info,
+        }
+
+    def _job_revoke(self):
+        task_id = str(self._params.get("job_id") or "").strip()
+        if not task_id:
+            raise ValueError("job_id is required")
+        if not self._confirmed(self._params):
+            return {
+                "status": "preview",
+                "job_id": task_id,
+                "message": "Repeat with confirm=true to request cancellation.",
+            }
+        from celery import current_app
+
+        current_app.control.revoke(task_id, terminate=False)
+        self._audit({
+            "action": "job_revoke",
+            "status": "requested",
+            "job_id": task_id,
+        })
+        return {
+            "status": "revocation_requested",
+            "job_id": task_id,
+            "message": "Cancellation requested. A running task stops at its next safe boundary.",
+        }
 
     def _category_rename(self):
         p=self._params; cid=int(p.get("category_id") or 0); new=str(p.get("new_name") or "").strip()
