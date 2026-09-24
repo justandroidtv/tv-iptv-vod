@@ -115,31 +115,53 @@ class Plugin:
                 "items":[{"id":x.id,"name":x.name,"year":getattr(x,"year",None)} for x in rows]}
 
     def _category_list(self):
-        *_, Category, CatRel, MovieRel, SeriesRel = self._models()
-        p=self._params; query=str(p.get("q") or "").strip()
-        page=max(1,int(p.get("page") or 1)); size=min(100,max(1,int(p.get("page_size") or 50)))
-        qs=Category.objects.all().order_by("category_type","name","id")
-        if query: qs=qs.filter(name__icontains=query)
         from django.db.models import Count
-
-        qs = qs.annotate(
-            account_links_count=Count("m3u_relations", distinct=True),
-            movie_links_count=Count("m3umovierelation", distinct=True),
-            series_links_count=Count("m3useriesrelation", distinct=True),
-        )
+        *_, Category, CatRel, MovieRel, SeriesRel = self._models()
+        p = self._params
+        query = str(p.get("q") or "").strip()
+        page = max(1, int(p.get("page") or 1))
+        size = min(100, max(1, int(p.get("page_size") or 50)))
+        qs = Category.objects.all().order_by("category_type", "name", "id")
+        if query:
+            qs = qs.filter(name__icontains=query)
         total = qs.count()
-        rows = qs[(page - 1) * size : page * size]
-        out = []
-        for cat in rows:
-            out.append({
-                "id": cat.id,
-                "name": cat.name,
-                "type": cat.category_type,
-                "account_links": cat.account_links_count,
-                "movie_links": cat.movie_links_count,
-                "series_links": cat.series_links_count,
-            })
-        return {"status":"ok","total":total,"page":page,"page_size":size,"items":out}
+        rows = list(qs[(page - 1) * size : page * size])
+        ids = [cat.id for cat in rows]
+        movie_counts = dict(
+            MovieRel.objects.filter(category_id__in=ids)
+            .values("category_id")
+            .annotate(c=Count("id"))
+            .values_list("category_id", "c")
+        )
+        series_counts = dict(
+            SeriesRel.objects.filter(category_id__in=ids)
+            .values("category_id")
+            .annotate(c=Count("id"))
+            .values_list("category_id", "c")
+        )
+        account_counts = dict(
+            CatRel.objects.filter(category_id__in=ids)
+            .values("category_id")
+            .annotate(c=Count("id"))
+            .values_list("category_id", "c")
+        )
+        return {
+            "status": "ok",
+            "total": total,
+            "page": page,
+            "page_size": size,
+            "items": [
+                {
+                    "id": cat.id,
+                    "name": cat.name,
+                    "type": cat.category_type,
+                    "account_links": account_counts.get(cat.id, 0),
+                    "movie_links": movie_counts.get(cat.id, 0),
+                    "series_links": series_counts.get(cat.id, 0),
+                }
+                for cat in rows
+            ],
+        }
 
     def _regex_library(self):
         return {"status":"ok","syntax":r"Python re; replacement uses \g<1>","recipes":DEFAULT_RECIPES}
