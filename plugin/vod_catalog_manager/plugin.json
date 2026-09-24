@@ -1,6 +1,6 @@
 {
   "name": "VOD Catalog Manager",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Non-core VOD catalog management for categories, naming rules, aliases and safe bulk changes.",
   "author": "justandroidtv",
   "help_url": "https://github.com/justandroidtv/tv-iptv-vod",
