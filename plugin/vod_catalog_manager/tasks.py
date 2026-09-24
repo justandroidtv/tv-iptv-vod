@@ -11,7 +11,7 @@ from celery import shared_task
 from celery.exceptions import Ignore
 from django.db import close_old_connections, transaction
 
-from .engine import apply_rule, validate_pattern
+from .engine import RegexRule, apply_rule, validate_pattern
 from .job_contract import normalize_job_request
 
 logger = logging.getLogger("vod_catalog_manager")
@@ -83,17 +83,7 @@ def regex_apply_task(self, params: dict[str, Any] | None = None) -> dict[str, An
         request = normalize_job_request(params)
         validate_pattern(request.pattern)
         flags = re.IGNORECASE if request.case_insensitive else 0
-        rule = type(
-            "RegexRequest",
-            (),
-            {
-                "pattern": request.pattern,
-                "replacement": request.replacement,
-                "flags": flags,
-                "enabled": True,
-            },
-        )()
-        model = _model_for_scope(request.scope)
+        rule = RegexRule(\n            pattern=request.pattern,\n            replacement=request.replacement,\n            flags=flags,\n            enabled=True,\n        )\n        model = _model_for_scope(request.scope)
         queryset = model.objects.all().order_by("id").values("id", "name")
         total = queryset.count()
         if request.max_rows:
