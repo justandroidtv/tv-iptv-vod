@@ -120,13 +120,25 @@ class Plugin:
         page=max(1,int(p.get("page") or 1)); size=min(100,max(1,int(p.get("page_size") or 50)))
         qs=Category.objects.all().order_by("category_type","name","id")
         if query: qs=qs.filter(name__icontains=query)
-        total=qs.count(); rows=qs[(page-1)*size:page*size]
-        out=[]
+        from django.db.models import Count
+
+        qs = qs.annotate(
+            account_links_count=Count("m3u_relations", distinct=True),
+            movie_links_count=Count("m3umovierelation", distinct=True),
+            series_links_count=Count("m3useriesrelation", distinct=True),
+        )
+        total = qs.count()
+        rows = qs[(page - 1) * size : page * size]
+        out = []
         for cat in rows:
-            out.append({"id":cat.id,"name":cat.name,"type":cat.category_type,
-                        "account_links":CatRel.objects.filter(category=cat).count(),
-                        "movie_links":MovieRel.objects.filter(category=cat).count(),
-                        "series_links":SeriesRel.objects.filter(category=cat).count()})
+            out.append({
+                "id": cat.id,
+                "name": cat.name,
+                "type": cat.category_type,
+                "account_links": cat.account_links_count,
+                "movie_links": cat.movie_links_count,
+                "series_links": cat.series_links_count,
+            })
         return {"status":"ok","total":total,"page":page,"page_size":size,"items":out}
 
     def _regex_library(self):
