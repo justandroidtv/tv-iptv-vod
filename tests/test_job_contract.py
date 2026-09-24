@@ -6,10 +6,10 @@ from plugin.vod_catalog_manager.job_contract import (
 
 
 def test_job_request_defaults_and_bounds():
-    req = normalize_job_request({"scope": "movie", "limit": 9999})
+    req = normalize_job_request({"scope": "movie", "max_rows": 999999})
     assert isinstance(req, JobRequest)
     assert req.scope == "movie"
-    assert req.limit == 500
+    assert req.max_rows == 100000
 
 
 def test_job_request_rejects_unknown_scope():
