@@ -86,7 +86,8 @@ class Plugin:
             "regex_apply":lambda:self._regex(True), "regex_apply_async":self._regex_apply_async,
             "job_status":self._job_status, "job_revoke":self._job_revoke,
             "category_rename":self._category_rename,
-            "category_visibility":self._category_visibility, "category_merge":self._category_merge, "audit_tail":self._audit_tail,
+            "category_visibility":self._category_visibility, "category_merge":self._category_merge,
+            "category_delete_empty":self._category_delete_empty, "audit_tail":self._audit_tail,
         }
         if action not in handlers:
             raise ValueError(f"Unknown action: {action}")
@@ -176,6 +177,7 @@ class Plugin:
             "scope": request.scope,
             "pattern": request.pattern,
             "replacement": request.replacement,
+            "max_rows": request.max_rows,
             "case_insensitive": request.case_insensitive,
         })
         self._audit({
@@ -230,6 +232,9 @@ class Plugin:
             }
         from celery import current_app
 
+        from .tasks import request_cancel
+
+        request_cancel(task_id)
         current_app.control.revoke(task_id, terminate=False)
         self._audit({
             "action": "job_revoke",
@@ -241,6 +246,53 @@ class Plugin:
             "job_id": task_id,
             "message": "Cancellation requested. A running task stops at its next safe boundary.",
         }
+
+    def _category_delete_empty(self):
+        p = self._params
+        category_id = int(p.get("category_id") or 0)
+        if not category_id:
+            raise ValueError("category_id is required")
+        from apps.vod.models import (
+            M3UMovieRelation,
+            M3USeriesRelation,
+            M3UVODCategoryRelation,
+            VODCategory,
+        )
+
+        category = VODCategory.objects.filter(pk=category_id).first()
+        if not category:
+            raise ValueError("Category not found")
+        movie_links = M3UMovieRelation.objects.filter(category=category).count()
+        series_links = M3USeriesRelation.objects.filter(category=category).count()
+        account_links = M3UVODCategoryRelation.objects.filter(category=category).count()
+        preview = {
+            "status": "preview",
+            "category_id": category_id,
+            "name": category.name,
+            "type": category.category_type,
+            "movie_links": movie_links,
+            "series_links": series_links,
+            "account_links": account_links,
+            "deletable": not any((movie_links, series_links, account_links)),
+        }
+        if any((movie_links, series_links, account_links)):
+            return preview
+        if not self._confirmed(p):
+            return preview
+        snapshot = self._snapshot("category_delete_empty", preview)
+        with transaction.atomic():
+            VODCategory.objects.filter(
+                pk=category_id, name=category.name, category_type=category.category_type
+            ).delete()
+        self._audit(
+            {
+                "action": "category_delete_empty",
+                "category_id": category_id,
+                "name": category.name,
+                "snapshot": snapshot,
+            }
+        )
+        return {"status": "ok", "deleted": True, "snapshot": snapshot}
 
     def _category_rename(self):
         p=self._params; cid=int(p.get("category_id") or 0); new=str(p.get("new_name") or "").strip()
@@ -284,7 +336,14 @@ class Plugin:
         snapshot=self._snapshot("category_merge",{"source":{"id":src_id,"name":src.name,"type":src.category_type,"links":links},"target":{"id":dst_id,"name":dst.name},"movie_ids":movies,"series_ids":series})
         with transaction.atomic():
             for link in links:
-                M3UVODCategoryRelation.objects.get_or_create(m3u_account_id=link["m3u_account_id"],category=dst,defaults={"enabled":link["enabled"],"custom_properties":link["custom_properties"]})
+                existing, created = M3UVODCategoryRelation.objects.get_or_create(
+                    m3u_account_id=link["m3u_account_id"],
+                    category=dst,
+                    defaults={"enabled":link["enabled"],"custom_properties":link["custom_properties"]},
+                )
+                if not created and link["enabled"] and not existing.enabled:
+                    existing.enabled = True
+                    existing.save(update_fields=["enabled", "updated_at"])
             M3UMovieRelation.objects.filter(id__in=movies,category=src).update(category=dst)
             M3USeriesRelation.objects.filter(id__in=series,category=src).update(category=dst)
             src.delete()
