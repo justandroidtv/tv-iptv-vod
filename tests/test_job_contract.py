@@ -14,11 +14,11 @@ def test_job_request_defaults_and_bounds():
 
 def test_job_request_rejects_unknown_scope():
     try:
-        normalize_job_request({"scope": "episode"})
+        normalize_job_request({"scope": "unknown"})
     except ValueError as exc:
         assert "scope" in str(exc)
     else:
-        raise AssertionError("episode scope must be rejected by the title job contract")
+        raise AssertionError("unknown scope must be rejected by the title job contract")
 
 
 def test_terminal_states_are_stable():
