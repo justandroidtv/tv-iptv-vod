@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 MAX_JOB_LIMIT = 500
-SUPPORTED_SCOPES = {"movie", "series"}
+SUPPORTED_SCOPES = {"movie", "series", "episode"}
 TERMINAL_STATES = {"completed", "failed", "revoked"}
 
 
@@ -21,7 +21,7 @@ def normalize_job_request(params: dict[str, Any] | None) -> JobRequest:
     params = dict(params or {})
     scope = str(params.get("scope") or "movie").strip().lower()
     if scope not in SUPPORTED_SCOPES:
-        raise ValueError("scope must be movie or series")
+        raise ValueError("scope must be movie, series or episode")
     pattern = str(params.get("pattern") or "")
     replacement = str(params.get("replacement") or "")
     case_value = params.get("case_insensitive", True)
