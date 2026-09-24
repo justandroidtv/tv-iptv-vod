@@ -85,6 +85,9 @@ def regex_apply_task(self, params: dict[str, Any] | None = None) -> dict[str, An
         model = _model_for_scope(request.scope)
         queryset = model.objects.all().order_by("id").values("id", "name")
         total = queryset.count()
+        if request.max_rows:
+            total = min(total, request.max_rows)
+            queryset = queryset[:request.max_rows]
         scanned = matched = updated = conflicts = 0
         snapshot = _snapshot_path(task_id)
         _write_job_event(
@@ -93,6 +96,7 @@ def regex_apply_task(self, params: dict[str, Any] | None = None) -> dict[str, An
                 "state": "started",
                 "scope": request.scope,
                 "total": total,
+                "max_rows": request.max_rows,
                 "snapshot": snapshot.name,
             },
         )
