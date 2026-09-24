@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-MAX_JOB_LIMIT = 500
+MAX_ASYNC_ROWS = 100_000
 SUPPORTED_SCOPES = {"movie", "series", "episode"}
 TERMINAL_STATES = {"completed", "failed", "revoked"}
 
@@ -11,7 +11,7 @@ TERMINAL_STATES = {"completed", "failed", "revoked"}
 @dataclass(frozen=True)
 class JobRequest:
     scope: str
-    limit: int = MAX_JOB_LIMIT
+    max_rows: int = 0
     pattern: str = ""
     replacement: str = ""
     case_insensitive: bool = True
@@ -27,13 +27,13 @@ def normalize_job_request(params: dict[str, Any] | None) -> JobRequest:
     case_value = params.get("case_insensitive", True)
     case_insensitive = str(case_value).lower() not in {"false", "0", "no"}
     try:
-        limit = int(params.get("limit") or MAX_JOB_LIMIT)
+        max_rows = int(params.get("max_rows") or 0)
     except (TypeError, ValueError) as exc:
-        raise ValueError("limit must be an integer") from exc
-    limit = max(1, min(MAX_JOB_LIMIT, limit))
+        raise ValueError("max_rows must be an integer") from exc
+    max_rows = max(0, min(MAX_ASYNC_ROWS, max_rows))
     return JobRequest(
         scope=scope,
-        limit=limit,
+        max_rows=max_rows,
         pattern=pattern,
         replacement=replacement,
         case_insensitive=case_insensitive,
