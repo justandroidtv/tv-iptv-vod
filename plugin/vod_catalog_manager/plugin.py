@@ -214,13 +214,16 @@ class Plugin:
                 "status": "preview_required",
                 "message": "Set confirm=true after reviewing Regex Preview.",
             }
-        task = regex_apply_task.delay({
+        task = regex_apply_task.apply_async(
+            args=[{
             "scope": request.scope,
             "pattern": request.pattern,
             "replacement": request.replacement,
             "max_rows": request.max_rows,
             "case_insensitive": request.case_insensitive,
-        })
+            }],
+            queue="dvr",
+        )
         self._audit({
             "action": "regex_apply_async",
             "status": "queued",
