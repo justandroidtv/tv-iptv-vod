@@ -89,6 +89,10 @@ def safe_filename(value: str, max_len: int = 180) -> str:
     return value[:max_len].rstrip(". ")
 
 
+# Backward-compatible naming for callers that use the older helper name.
+sanitize_filename = safe_filename
+
+
 def render_alias(
     template: str,
     *,
