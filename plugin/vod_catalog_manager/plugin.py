@@ -16,7 +16,7 @@ from .job_contract import normalize_job_request
 from .tasks import JOB_NAME, regex_apply_task  # noqa: F401
 
 NAME = "VOD Catalog Manager"
-VERSION = "0.3.0"
+VERSION = "0.3.1"
 
 class Plugin:
     name = NAME
