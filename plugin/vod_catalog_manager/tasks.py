@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from celery import shared_task
+from celery.exceptions import Ignore
 from django.db import close_old_connections, transaction
 
 from .engine import apply_rule, validate_pattern
@@ -40,6 +41,16 @@ def _model_for_scope(scope: str):
     from apps.vod.models import Episode, Movie, Series
 
     return {"movie": Movie, "series": Series, "episode": Episode}[scope]
+
+
+def cancel_path(task_id: str) -> Path:
+    return _job_dir() / f"{task_id}.cancel"
+
+
+def request_cancel(task_id: str) -> str:
+    path = cancel_path(task_id)
+    path.write_text("requested\n", encoding="utf-8")
+    return path.name
 
 
 def _snapshot_path(task_id: str) -> Path:
@@ -132,6 +143,20 @@ def regex_apply_task(self, params: dict[str, Any] | None = None) -> dict[str, An
             batch.clear()
 
         for row in queryset.iterator(chunk_size=BATCH_SIZE):
+            if cancel_path(task_id).exists():
+                result = _progress(
+                    task_id,
+                    "revoked",
+                    scope=request.scope,
+                    total=total,
+                    scanned=scanned,
+                    matched=matched,
+                    updated=updated,
+                    conflicts=conflicts,
+                    snapshot=snapshot.name,
+                )
+                self.update_state(state="REVOKED", meta=result)
+                raise Ignore()
             scanned += 1
             old = str(row["name"] or "")
             new = apply_rule(old, rule)
@@ -140,6 +165,20 @@ def regex_apply_task(self, params: dict[str, Any] | None = None) -> dict[str, An
                 batch.append({"id": row["id"], "old": old, "new": new})
             if len(batch) >= BATCH_SIZE:
                 flush()
+                if cancel_path(task_id).exists():
+                    result = _progress(
+                        task_id,
+                        "revoked",
+                        scope=request.scope,
+                        total=total,
+                        scanned=scanned,
+                        matched=matched,
+                        updated=updated,
+                        conflicts=conflicts,
+                        snapshot=snapshot.name,
+                    )
+                    self.update_state(state="REVOKED", meta=result)
+                    raise Ignore()
                 meta = _progress(
                     task_id,
                     "running",
